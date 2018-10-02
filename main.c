@@ -104,7 +104,8 @@ void updateExtremeEdge(int edgeCount, int curr_value, int* max, int* min);
 /* Search helper functions */
 int searchID(void* node, void* key);
 int searchStartVertex(void* node, void* key);
-
+void insertAtCircuit(Node_t** adjacencyList , Node_t** circuit, char
+nextVertex);
 char selectVertex(Node_t** adjacencyList, Node_t** circuit);
 Node_t* findMinValue(Node_t** head);
 int updateStatus(Node_t** adjacencyList, Node_t* min);
@@ -567,8 +568,8 @@ void do_stage1(Node_t** adjacencyList, char routeStart) {
 
     /* keeping constructing new circuit until all edge were visited */
     while ((nextVertex = selectVertex(adjacencyList, &circuit))){
-        Node_t* walk = constructCircuit(adjacencyList,nextVertex);
-        Node_t* joint = searchList(&circuit, &nextVertex, &searchStartVertex);
+        walk = constructCircuit(adjacencyList,nextVertex);
+        joint = searchList(&circuit, &nextVertex, &searchStartVertex);
         insertBefore(&circuit, &walk, &joint);
         printOutput(&circuit, &lineCount);
     }
@@ -582,53 +583,84 @@ void do_stage1(Node_t** adjacencyList, char routeStart) {
 void do_stage2(Node_t** adjacencyList, char routeStart) {
     printOutputHeader(2);
     int lineCount = 0;
+    int maxValue = 0;
     /* Linked list that records incident travelled */
     Node_t *circuit = NULL;
     Node_t *joint = NULL;
     /* Construct initial circuit */
     Node_t *walk = constructCircuit(adjacencyList, routeStart);
     insertBefore(&circuit, &walk, &joint);
-
     /* To test each possible extension, make a copy of adjacencyList */
-    Node_t* copy[MAX_VERTICES] = {NULL};
+    Node_t *copy[MAX_VERTICES] = {NULL};
     cloneAdjacencyList(copy, adjacencyList);
-    Node_t* localCircuit = cloneList(circuit);
+    Node_t *localCircuit = cloneList(circuit);
 
-    /* Attempt each extensions */
     Node_t *currIncident = circuit;
+    char nextVertex;
+    int nextIndex;
+    Node_t *lastNode;
+
+    /* traverse each vertex */
     while (currIncident != NULL) {
-        printIncident(currIncident->data);
-        char nextVertex = currIncident->data.startVertex;
-        int nextIndex = vertex2Index(nextVertex);
-        /* if current vertex can be extended */
-        if (hasUnvisitedEdge(&copy[nextIndex])) {
-            Node_t *walk = constructCircuit(copy, nextVertex);
-            printRestrictedCircuit(&walk);
-//            Node_t *joint = searchList(&localCircuit, &(currIncident->data
-//                    .ID), &searchID);
-//            insertBefore(&localCircuit, &walk, &joint);
-//            printOutput(&localCircuit, &lineCount);
+        int currValue = 0;
+        nextVertex = currIncident->data.startVertex;
+        insertAtCircuit(copy, &localCircuit, nextVertex);
+        lastNode = currIncident;
+        currIncident = currIncident->next;
+        if (!maxValue){
+            maxValue = computeScenicValue(&localCircuit);
         }
+        else if ((currValue = computeScenicValue(&localCircuit) > maxValue)){
+            maxValue = computeScenicValue(&localCircuit);
+        }
+
         /* reset localCircuit and copy for next iteration */
         cloneAdjacencyList(copy, adjacencyList);
         localCircuit = cloneList(circuit);
-        currIncident = currIncident->next;
+        printf("%d", maxValue);
     }
-        printf("S1: Scenic route value is %d", computeScenicValue(&circuit));
-        /* free circuit */
-        deleteList(&circuit);
-        circuit = NULL;
+
+    nextVertex = lastNode->data.endVertex;
+    nextIndex = vertex2Index(nextVertex);
+    if (hasUnvisitedEdge(&copy[nextIndex])) {
+        walk = constructCircuit(copy, nextVertex);
+        insertBefore(&localCircuit, &walk, &lastNode);
+        printRestrictedCircuit(&localCircuit);
+    }
+    int currValue = 0;
+    if ((currValue = computeScenicValue(&localCircuit) > maxValue)){
+        maxValue = computeScenicValue(&localCircuit);
+    }
+    printf("%d", maxValue);
+
+    printf("S1: Scenic route value is %d", computeScenicValue(&circuit));
+    /* free circuit */
+    deleteList(&circuit);
+    circuit = NULL;
+}
+void insertAtCircuit(Node_t** adjacencyList , Node_t** circuit, char
+nextVertex){
+    int nextIndex = vertex2Index(nextVertex);
+    if (hasUnvisitedEdge(&adjacencyList[nextIndex])) {
+        Node_t *walk = constructCircuit(adjacencyList, nextVertex);
+        Node_t* joint = searchList(circuit, &nextVertex, &searchStartVertex);
+        insertBefore(circuit, &walk, &joint);
+        printRestrictedCircuit(circuit);
+    }
 }
 
 void insertBefore(Node_t** circuit, Node_t** walk, Node_t** joint){
     assert(circuit!=NULL);
     assert(*walk!=NULL && walk!=NULL);
-    /* if main circuit if empty */
-    if (*circuit == NULL && *joint == NULL){
+    /* if given linked list is empty */
+    if (*circuit == NULL){
         *circuit = *walk;
         return;
     }
-
+    /* if given linked list to be inserted is empty */
+    if (*walk == NULL){
+        return;
+    }
     Node_t* curr = *circuit;
     Node_t* prev = NULL;
     while (curr->data.ID != (*joint)->data.ID){
