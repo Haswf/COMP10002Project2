@@ -51,7 +51,7 @@
 #define NOT_FOUND 0
 #define PRINT_EDGE_LIMIT 12
 #define FIRST_TEN_LINE 10
-#define A_NEGATIVE_NUMBER -1
+
 /* type definitions ----------------------------------------------------------*/
 typedef struct Node Node_t;
 
@@ -340,15 +340,13 @@ void append(Node_t **head, data_t new_data) {
     last->next = new;
 }
 
-void printOutput(Node_t **circuit, int *lineCount, char* stagemarker) {
+void printOutput(Node_t **circuit, int *lineCount,
+                 char* stagemarker) {
     /* static prevLine keeps track of last line printed */
-    static int prevLine = A_NEGATIVE_NUMBER;
-    printf("%s: ", stagemarker);
-    if ((*lineCount <= FIRST_TEN_LINE || !(*lineCount % 5)) && prevLine !=
-                                                               *lineCount) {
+    if (*lineCount <= FIRST_TEN_LINE || !(*lineCount % 5)) {
         /* Call printRestrictedCircuit to print formatted output */
+        printf("%s: ", stagemarker);
         printRestrictedCircuit(circuit);
-        prevLine = *lineCount;
     }
     /* increment of lineCount by 1 */
     (*lineCount)++;
@@ -593,7 +591,7 @@ int do_stage0(Node_t **adjacencyList, char routeStart) {
 
 void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutputHeader(1);
-    int lineCount = 0;
+    int lineCount = 1;
     int edgeVisited = 0;
     /* Linked list that records incident travelled */
     Node_t *circuit = NULL;
@@ -613,10 +611,13 @@ void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
             walk = constructCircuit(adjacencyList, nextVertex);
             joint = searchList(&circuit, &nextVertex, &searchStartVertex);
             insertBefore(&circuit, &walk, &joint);
-            edgeVisited = countList(&circuit);
             printOutput(&circuit, &lineCount, "S1");
         }
+        edgeVisited = countList(&circuit);
+
     }
+    lineCount = 0;
+    printOutput(&circuit, &lineCount, "S1");
     printf("S1: Scenic route value is %d\n", computeScenicValue(&circuit));
     /* free circuit */
     deleteList(&circuit);
@@ -721,7 +722,7 @@ void do_stage2(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutputHeader(2);
     /* Linked list that records incident travelled */
     Node_t *circuit = NULL;
-    int lineCount = 0;
+    int lineCount = 1;
 
     /* construct first circuit */
     ConstructInitialCircuit(adjacencyList, &circuit, routeStart);
@@ -741,10 +742,11 @@ void do_stage2(Node_t **adjacencyList, char routeStart, int edgeCount) {
                                     &circuitCopy);
         printOutput(&circuit, &lineCount, "S2");
     }
-
-    freeAdjacencyList(adjacencyListCopy);
+    lineCount = 0;
+    printOutput(&circuit, &lineCount, "S2");
     printf("S2: Scenic route value is %d\n", computeScenicValue(&circuit));
     /* free circuit */
+    freeAdjacencyList(adjacencyListCopy);
     deleteList(&circuitCopy);
     circuitCopy = NULL;
 }
