@@ -98,6 +98,9 @@ int readMultigraph(Node_t **adjacencyList, char routeStart);
 /* print-related functions */
 void printList(Node_t **head);
 
+Node_t* extendOneVertex(Node_t** adjacencyList, Node_t** circuit, Node_t*
+vertex);
+
 void printMultigraph(Node_t **adjacencyList);
 
 void printOutputHeader(int stage_no);
@@ -106,7 +109,7 @@ void printIncident(incident_t incident);
 
 void printRestrictedCircuit(Node_t **circuit);
 
-void printOutput(Node_t **circuit, int *lineCount);
+void printOutput(Node_t **circuit, int *lineCount, char* stagemarker);
 
 void resetStatus(Node_t **adjacencyList);
 
@@ -120,6 +123,8 @@ char readStart(char *str);
 
 int vertex2Index(char vertex);
 
+Node_t* extendEndVertex(Node_t** adjacencyList, Node_t** circuit);
+
 void ConstructInitialCircuit(Node_t** adjacencyList, Node_t** circuit, char
 routeStart);
 
@@ -128,9 +133,7 @@ void updateExtremeEdge(int edgeCount, int curr_value, int *max, int *min);
 /* Search helper functions */
 int searchID(void *node, void *key);
 
-int searchStartVertex(void *node, void *key);
-
-char selectVertex(Node_t **adjacencyList, Node_t **circuit);
+Node_t* selectVertex(Node_t **adjacencyList, Node_t **circuit);
 
 Node_t *findMinValue(Node_t **head);
 
@@ -138,10 +141,11 @@ int updateStatus(Node_t **adjacencyList, Node_t *min);
 
 Node_t *constructCircuit(Node_t **adjacencyList, char routeStart);
 
-void do_stage0(Node_t **adjacencyList, char routeStart);
+int do_stage0(Node_t **adjacencyList, char routeStart);
 
-void do_stage1(Node_t **adjacencyList, char routeStart);
+void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount);
 
+Node_t* testEndVertex(Node_t** adjacencyList, Node_t** circuit);
 /* end function prototypes ---------------------------------------------------*/
 
 
@@ -255,7 +259,7 @@ int readMultigraph(Node_t **adjacencyList, char routeStart) {
     printf("S0: Number of vertices with odd degree: %d\n", oddDegree);
     printf("S0: Number of vertices with even degree: %d\n", evenDegree);
     checkType(oddDegree, evenDegree);
-    return 0;
+    return edgesCount;
 }
 
 incident_t incidentPacker(char startVertex, char endVertex, int value, int ID) {
@@ -271,7 +275,7 @@ incident_t incidentPacker(char startVertex, char endVertex, int value, int ID) {
 
 void checkType(int oddDegree, int evenDegree) {
     if (!oddDegree && evenDegree) {
-        printf("S0: Multigraph is Eulerian");
+        printf("S0: Multigraph is Eulerian\n");
         return;
     } else if (oddDegree == 2) {
         printf("S0: Multigraph is traversable\n");
@@ -336,9 +340,10 @@ void append(Node_t **head, data_t new_data) {
     last->next = new;
 }
 
-void printOutput(Node_t **circuit, int *lineCount) {
+void printOutput(Node_t **circuit, int *lineCount, char* stagemarker) {
     /* static prevLine keeps track of last line printed */
     static int prevLine = A_NEGATIVE_NUMBER;
+    printf("%s: ", stagemarker);
     if ((*lineCount <= FIRST_TEN_LINE || !(*lineCount % 5)) && prevLine !=
                                                                *lineCount) {
         /* Call printRestrictedCircuit to print formatted output */
@@ -353,7 +358,7 @@ void printRestrictedCircuit(Node_t **circuit) {
     assert (circuit != NULL && *circuit != NULL);
     Node_t *curr = *circuit;
     /* print start vertex of the route */
-    printf("S1: %c", curr->data.startVertex);
+    printf("%c", curr->data.startVertex);
     /* count how many edge are visited in the circuit */
     int edgeCount = countList(circuit);
     int printCount = 0;
@@ -363,9 +368,10 @@ void printRestrictedCircuit(Node_t **circuit) {
                 printf("-%d->%c", curr->data.value, curr->data.endVertex);
             } else if (printCount == 6) {
                 printf("...");
-            } else if (printCount == edgeCount - 7) {
-                printf("%c", curr->data.endVertex);
-            } else if (printCount >= (edgeCount - 6)) {
+            } else if (printCount == edgeCount - 6) {
+                printf("%c", curr->data.startVertex);
+                printf("-%d->%c", curr->data.value, curr->data.endVertex);
+            } else if (printCount > (edgeCount - 6)) {
                 printf("-%d->%c", curr->data.value, curr->data.endVertex);
             }
             printCount++;
@@ -389,22 +395,20 @@ void printList(Node_t **head) {
     printf("\n");
 }
 
-char selectVertex(Node_t **adjacencyList, Node_t **circuit) {
+Node_t* selectVertex(Node_t **adjacencyList, Node_t **circuit) {
     assert(adjacencyList != NULL && *adjacencyList != NULL);
     assert(circuit != NULL && *circuit != NULL);
     Node_t *currIncident = *circuit;
-    char smallest = A_NEGATIVE_NUMBER;
     while (currIncident != NULL) {
         char start = currIncident->data.startVertex;
         int startIndex = vertex2Index(start);
-        Node_t *head = adjacencyList[startIndex];
+        Node_t* head = adjacencyList[startIndex];
         if (hasUnvisitedEdge(&head)) {
-            smallest = start;
-            break;
+            return head;
         }
         currIncident = currIncident->next;
     }
-    return smallest;
+    return NULL;
 }
 
 int hasUnvisitedEdge(Node_t **head) {
@@ -490,7 +494,7 @@ int countList(Node_t **head) {
 
 void printOutputHeader(int stage_no) {
     /* The print_output_header(int stage_no) prints stage header. */
-    printf("\nStage %d Output\n--------------\n", stage_no);
+    printf("Stage %d Output\n--------------\n", stage_no);
 }
 
 Node_t *findMinValue(Node_t **head) {
@@ -581,38 +585,50 @@ Node_t *constructCircuit(Node_t **adjacencyList, char routeStart) {
     return walk;
 }
 
-void do_stage0(Node_t **adjacencyList, char routeStart) {
+int do_stage0(Node_t **adjacencyList, char routeStart) {
     printOutputHeader(0);
-    readMultigraph(adjacencyList, routeStart);
+    int edgeCount = readMultigraph(adjacencyList, routeStart);
+    return edgeCount;
 }
 
-void do_stage1(Node_t **adjacencyList, char routeStart) {
+void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutputHeader(1);
-    char nextVertex;
     int lineCount = 0;
+    int edgeVisited = 0;
     /* Linked list that records incident travelled */
     Node_t *circuit = NULL;
-    Node_t *joint = NULL;
+
     /* Construct initial circuit */
     ConstructInitialCircuit(adjacencyList, &circuit, routeStart);
-    printOutput(&circuit, &lineCount);
+    printOutput(&circuit, &lineCount, "S1");
 
     /* keeping constructing new circuit until all edge were visited */
-    while ((nextVertex = selectVertex(adjacencyList, &circuit))!= A_NEGATIVE_NUMBER) {
-        Node_t* walk = NULL;
-        walk = constructCircuit(adjacencyList, nextVertex);
-        joint = searchList(&circuit, &nextVertex, &searchStartVertex);
-        insertBefore(&circuit, &walk, &joint);
-        printOutput(&circuit, &lineCount);
+    while (edgeVisited != edgeCount) {
+        Node_t *curr = selectVertex(adjacencyList, &circuit);
+        Node_t *walk = NULL;
+        Node_t *joint = NULL;
+        char nextVertex = curr->data.startVertex;
+        int nextIndex = vertex2Index(nextVertex);
+        if (hasUnvisitedEdge(&adjacencyList[nextIndex])) {
+            walk = constructCircuit(adjacencyList, nextVertex);
+            joint = searchList(&circuit, &nextVertex, &searchStartVertex);
+            insertBefore(&circuit, &walk, &joint);
+            edgeVisited = countList(&circuit);
+            printOutput(&circuit, &lineCount, "S1");
+        }
     }
-    printf("S1: Scenic route value is %d", computeScenicValue(&circuit));
+    printf("S1: Scenic route value is %d\n", computeScenicValue(&circuit));
     /* free circuit */
     deleteList(&circuit);
     circuit = NULL;
 }
 
-void resetSandbox(Node_t **adjacencyList, Node_t **circuit,
-                  Node_t **adjacencyListCopy, Node_t **circuitCopy) {
+void resetSandbox(Node_t** adjacencyList, Node_t **adjacencyListCopy,
+                  Node_t** circuit, Node_t **circuitCopy){
+    /* free previous copy */
+    deleteList(circuitCopy);
+    freeAdjacencyList(adjacencyListCopy);
+
     cloneAdjacencyList(adjacencyListCopy, adjacencyList);
     *circuitCopy = cloneList(*circuit);
 }
@@ -633,89 +649,104 @@ void updateAdjacencyList(Node_t **adjacencyList, Node_t** circuit){
         incident = incident->next;
     }
 }
-void findBestExtension(Node_t **adjacencyList, Node_t** circuit){
-    Node_t *joint = NULL;
-    Node_t* best = NULL;
-    int maxVal = 0;
-
-    /* To test each possible extension, make a copy of adjacencyList */
-    Node_t *copy[MAX_VERTICES] = {NULL};
-    Node_t *localCircuit = NULL;
-    resetSandbox(adjacencyList, circuit, copy, &localCircuit);
-
-    char nextVertex;
-    int nextIndex;
-    char bestnextVertex;
-    Node_t* walk = NULL;
-
-    Node_t *currIncident = *circuit;
+int findBestExtension(Node_t **adjacencyList, Node_t** adjacencyListCopy,
+                       Node_t** circuit, Node_t** circuitCopy) {
+    Node_t* constCircuit = cloneList(*circuit);
+    int max = 0;
+    Node_t* currIncident = constCircuit;
     /* traverse each vertex */
     while (currIncident != NULL) {
-        nextVertex = currIncident->data.startVertex;
-        nextIndex = vertex2Index(nextVertex);
-        int currVal = 0;
-        if (hasUnvisitedEdge(&copy[nextIndex])) {
-            printf("nextVertex: %c",nextVertex);
-            walk = constructCircuit(copy, nextVertex);
-            printRestrictedCircuit(&walk);
-            joint = searchList(&localCircuit, &nextVertex, &searchStartVertex);
-            insertBefore(&localCircuit, &walk, &joint);
-            printRestrictedCircuit(&localCircuit);
-            if ((currVal=computeScenicValue(&localCircuit))>maxVal){
-                maxVal = currVal;
-                best = walk;
-                printf("currBest= ");
-                printRestrictedCircuit(&best);
-                bestnextVertex = nextVertex;
+        *circuitCopy = extendOneVertex(adjacencyListCopy, circuitCopy,
+                                     currIncident);
+        if (*circuitCopy != NULL) {
+            int curr = computeScenicValue(circuitCopy);
+            if (curr > max){
+                max = curr;
+                deleteList(circuit);
+                *circuit = cloneList(*circuitCopy);
             }
-            deleteList(&walk);
-            walk = NULL;
-            /* reset localCircuit and copy for next iteration */
-            resetSandbox(adjacencyList, circuit, copy, &localCircuit);
         }
+        resetSandbox(adjacencyList, adjacencyListCopy, &constCircuit,
+                     circuitCopy);
         currIncident = currIncident->next;
     }
+    resetSandbox(adjacencyList, adjacencyListCopy, &constCircuit, circuitCopy);
+    /* Attempt to extend at last vertex */
+    *circuitCopy = extendEndVertex(adjacencyListCopy, circuitCopy);
+    int curr = computeScenicValue(circuitCopy);
+    if (curr > max){
+        deleteList(circuit);
+        *circuit = cloneList(*circuitCopy);
+    }
+    updateAdjacencyList(adjacencyList, circuit);
+    return countList(circuit);
+}
 
-    Node_t *lastNode = localCircuit;
+Node_t* extendEndVertex(Node_t** adjacencyList, Node_t** circuit){
+    Node_t *lastNode = *circuit;
+    /* locate the end of vertex */
     while (lastNode->next != NULL) {
         lastNode = lastNode->next;
     }
-    nextVertex = lastNode->data.endVertex;
-    nextIndex = vertex2Index(nextVertex);
-    int currVal = 0;
-    if (hasUnvisitedEdge(&copy[nextIndex])) {
-        walk = constructCircuit(copy, nextVertex);
-        printf("nextVertex: %c",nextVertex);
-        printRestrictedCircuit(&walk);
-        mergeList(&localCircuit, &walk);
-    }
-
-    if ((currVal=computeScenicValue(&localCircuit))>maxVal){
-        maxVal = currVal;
-        best = walk;
+    char nextVertex = lastNode->data.endVertex;
+    int nextIndex = vertex2Index(nextVertex);
+    Node_t* walk = NULL;
+    if (hasUnvisitedEdge(&adjacencyList[nextIndex])) {
+        walk = constructCircuit(adjacencyList, nextVertex);
         mergeList(circuit, &walk);
     }
-    else {
-        joint = searchList(circuit, &bestnextVertex, &searchStartVertex);
-        insertBefore(circuit, &best, &joint);
-    }
-    printf("Best= ");
-    printRestrictedCircuit(&best);
-    updateAdjacencyList(adjacencyList, circuit);
+    return *circuit;
 }
 
-void do_stage2(Node_t **adjacencyList, char routeStart) {
+Node_t* extendOneVertex(Node_t** adjacencyList, Node_t** circuit, Node_t*
+vertex){
+    Node_t* walk = NULL;
+    Node_t* joint = NULL;
+    char nextVertex = vertex->data.startVertex;
+    int nextIndex = vertex2Index(nextVertex);
+    int edgeID = vertex->data.ID;
+    if (hasUnvisitedEdge(&adjacencyList[nextIndex])){
+        walk = constructCircuit(adjacencyList, nextVertex);
+        joint = searchList(circuit, &edgeID, &searchID);
+        insertBefore(circuit, &walk, &joint);
+        return *circuit;
+    }
+    else {
+        return NULL;
+    }
+
+}
+
+void do_stage2(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutputHeader(2);
     /* Linked list that records incident travelled */
     Node_t *circuit = NULL;
+    int lineCount = 0;
 
+    /* construct first circuit */
     ConstructInitialCircuit(adjacencyList, &circuit, routeStart);
-    findBestExtension(adjacencyList, &circuit);
-    findBestExtension(adjacencyList, &circuit);
+    printOutput(&circuit, &lineCount, "S2");
+    int edgeVisited = countList(&circuit);
 
+    /* make a deep copy of adjacencyList */
+    Node_t *adjacencyListCopy[MAX_VERTICES] = {NULL};
+    cloneAdjacencyList(adjacencyListCopy, adjacencyList);
+
+    /* make a deep copy of current circuit */
+    Node_t *circuitCopy = NULL;
+    circuitCopy = cloneList(circuit);
+
+    while (edgeVisited != edgeCount) {
+        edgeVisited = findBestExtension(adjacencyList, adjacencyListCopy, &circuit,
+                                    &circuitCopy);
+        printOutput(&circuit, &lineCount, "S2");
+    }
+
+    freeAdjacencyList(adjacencyListCopy);
+    printf("S2: Scenic route value is %d\n", computeScenicValue(&circuit));
     /* free circuit */
-    deleteList(&circuit);
-    circuit = NULL;
+    deleteList(&circuitCopy);
+    circuitCopy = NULL;
 }
 
 void mergeList(Node_t **lst1, Node_t **lst2) {
@@ -780,12 +811,13 @@ int computeScenicValue(Node_t **circuit) {
 }
 
 int main(int argc, char *argv[]) {
+    int edgeCount = 0;
     Node_t *adjacencyList[MAX_VERTICES] = {NULL};
     char routeStart = readStart(argv[1]);
-    do_stage0(adjacencyList, routeStart);
-//    do_stage1(adjacencyList, routeStart);
+    edgeCount = do_stage0(adjacencyList, routeStart);
+    do_stage1(adjacencyList, routeStart, edgeCount);
     resetStatus(adjacencyList);
-    do_stage2(adjacencyList, routeStart);
+    do_stage2(adjacencyList, routeStart, edgeCount);
     freeAdjacencyList(adjacencyList);
     return 0;
 }
