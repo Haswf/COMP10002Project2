@@ -344,7 +344,7 @@ void printOutput(Node_t **circuit, int *lineCount,
     static int prevLineCount = 0;
     /* static prevLine keeps track of last line printed */
     if ((*lineCount <= FIRST_TEN_LINE || !(*lineCount % 5))  &&
-    prevLineCount!= *lineCount) {
+        prevLineCount!= *lineCount) {
         /* Call printRestrictedCircuit to print formatted output */
         printf("%s: ", stagemarker);
         printRestrictedCircuit(circuit);
@@ -628,15 +628,15 @@ void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
 void resetSandbox(Node_t** adjacencyList, Node_t **adjacencyListCopy,
                   Node_t** circuit, Node_t **circuitCopy){
     /* free previous copy */
-    freeAdjacencyList(adjacencyListCopy);
-    cloneAdjacencyList(adjacencyListCopy, adjacencyList);
-
     deleteList(circuitCopy);
+    freeAdjacencyList(adjacencyListCopy);
+
+    cloneAdjacencyList(adjacencyListCopy, adjacencyList);
     *circuitCopy = cloneList(*circuit);
 }
 
 void ConstructInitialCircuit(Node_t** adjacencyList, Node_t** circuit, char
-                             routeStart){
+routeStart){
     Node_t *joint = NULL;
     /* Construct initial circuit */
     Node_t *walk = constructCircuit(adjacencyList, routeStart);
@@ -650,36 +650,49 @@ void updateAdjacencyList(Node_t **adjacencyList, Node_t** circuit){
         incident = incident->next;
     }
 }
-int findBestExtension(Node_t **adjacencyList, Node_t** adjacencyListCopy,
-                       Node_t** circuit, Node_t** circuitCopy) {
-    Node_t* constCircuit = cloneList(*circuit);
+int findBestExtension(Node_t **adjacencyList, Node_t** circuit) {
     int max = 0;
+    Node_t* constCircuit = cloneList(*circuit);
     Node_t* currIncident = constCircuit;
+    Node_t* adjacencyListCopy[MAX_VERTICES] = {NULL};
+    Node_t* circuitCopy = NULL;
+
     /* traverse each vertex */
     while (currIncident != NULL) {
-        *circuitCopy = extendOneVertex(adjacencyListCopy, circuitCopy,
-                                     currIncident);
-        if (*circuitCopy != NULL) {
-            int curr = computeScenicValue(circuitCopy);
+        cloneAdjacencyList(adjacencyListCopy, adjacencyList);
+        circuitCopy = cloneList(constCircuit);
+        Node_t* originHead = circuitCopy ;
+        circuitCopy = extendOneVertex(adjacencyListCopy, &circuitCopy,
+                                       currIncident);
+        if (circuitCopy != NULL) {
+            int curr = computeScenicValue(&circuitCopy);
             if (curr > max){
                 max = curr;
                 deleteList(circuit);
-                *circuit = cloneList(*circuitCopy);
+                *circuit = NULL;
+                *circuit = cloneList(circuitCopy);
             }
         }
-        resetSandbox(adjacencyList, adjacencyListCopy, &constCircuit,
-                     circuitCopy);
+        freeAdjacencyList(adjacencyListCopy);
+        deleteList(&originHead);
+        deleteList(&circuitCopy);
         currIncident = currIncident->next;
     }
-    resetSandbox(adjacencyList, adjacencyListCopy, &constCircuit, circuitCopy);
+    deleteList(&circuitCopy);
+
     /* Attempt to extend at last vertex */
-    *circuitCopy = extendEndVertex(adjacencyListCopy, circuitCopy);
-    int curr = computeScenicValue(circuitCopy);
+    cloneAdjacencyList(adjacencyListCopy, adjacencyList);
+    circuitCopy = cloneList(constCircuit);
+    Node_t *originHead = circuitCopy;
+    circuitCopy = extendEndVertex(adjacencyListCopy, &circuitCopy);
+    int curr = computeScenicValue(&circuitCopy);
     if (curr > max){
         deleteList(circuit);
-        *circuit = cloneList(*circuitCopy);
+        *circuit = cloneList(circuitCopy);
     }
-    deleteList(circuitCopy);
+    freeAdjacencyList(adjacencyListCopy);
+    deleteList(&constCircuit);
+    deleteList(&originHead);
     updateAdjacencyList(adjacencyList, circuit);
     return countList(circuit);
 }
@@ -730,28 +743,16 @@ void do_stage2(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutput(&circuit, &lineCount, "S2");
     int edgeVisited = countList(&circuit);
 
-    /* make a deep copy of adjacencyList */
-    Node_t *adjacencyListCopy[MAX_VERTICES] = {NULL};
-    cloneAdjacencyList(adjacencyListCopy, adjacencyList);
-
-    /* make a deep copy of current circuit */
-    Node_t *circuitCopy = NULL;
-    circuitCopy = cloneList(circuit);
-
     while (edgeVisited != edgeCount) {
-        edgeVisited = findBestExtension(adjacencyList, adjacencyListCopy, &circuit,
-                                    &circuitCopy);
+        edgeVisited = findBestExtension(adjacencyList, &circuit);
         if (edgeVisited == edgeCount){
             lineCount = -1;
         }
         printOutput(&circuit, &lineCount, "S2");
     }
+    deleteList(&circuit);
     lineCount = 0;
     printf("S2: Scenic route value is %d\n", computeScenicValue(&circuit));
-    /* free circuit */
-    freeAdjacencyList(adjacencyListCopy);
-    deleteList(&circuitCopy);
-    circuitCopy = NULL;
 }
 
 void mergeList(Node_t **lst1, Node_t **lst2) {
@@ -797,7 +798,7 @@ void insertBefore(Node_t **circuit, Node_t **walk, Node_t **joint) {
         *circuit = walkHead;
         walkEnd->next = (*joint);
     }
-    /* if list is to be inserted at the middle of the circuit */
+        /* if list is to be inserted at the middle of the circuit */
     else {
         prev->next = *walk;
         walkEnd->next = (*joint);
