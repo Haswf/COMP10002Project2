@@ -628,10 +628,10 @@ void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
 void resetSandbox(Node_t** adjacencyList, Node_t **adjacencyListCopy,
                   Node_t** circuit, Node_t **circuitCopy){
     /* free previous copy */
-    deleteList(circuitCopy);
     freeAdjacencyList(adjacencyListCopy);
-
     cloneAdjacencyList(adjacencyListCopy, adjacencyList);
+
+    deleteList(circuitCopy);
     *circuitCopy = cloneList(*circuit);
 }
 
@@ -679,6 +679,7 @@ int findBestExtension(Node_t **adjacencyList, Node_t** adjacencyListCopy,
         deleteList(circuit);
         *circuit = cloneList(*circuitCopy);
     }
+    deleteList(circuitCopy);
     updateAdjacencyList(adjacencyList, circuit);
     return countList(circuit);
 }
