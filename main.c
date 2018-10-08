@@ -618,7 +618,6 @@ void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
             printOutput(&circuit, &lineCount, "S1");
         }
     }
-    lineCount = 0;
     printf("S1: Scenic route value is %d\n", computeScenicValue(&circuit));
     /* free circuit */
     deleteList(&circuit);
@@ -675,10 +674,8 @@ int findBestExtension(Node_t **adjacencyList, Node_t** circuit) {
         }
         freeAdjacencyList(adjacencyListCopy);
         deleteList(&originHead);
-        deleteList(&circuitCopy);
         currIncident = currIncident->next;
     }
-    deleteList(&circuitCopy);
 
     /* Attempt to extend at last vertex */
     cloneAdjacencyList(adjacencyListCopy, adjacencyList);
@@ -750,9 +747,9 @@ void do_stage2(Node_t **adjacencyList, char routeStart, int edgeCount) {
         }
         printOutput(&circuit, &lineCount, "S2");
     }
-    deleteList(&circuit);
-    lineCount = 0;
     printf("S2: Scenic route value is %d\n", computeScenicValue(&circuit));
+    deleteList(&circuit);
+    circuit = NULL;
 }
 
 void mergeList(Node_t **lst1, Node_t **lst2) {
