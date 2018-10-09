@@ -396,7 +396,7 @@ void printList(Node_t **head) {
 }
 
 Node_t* selectVertex(Node_t **adjacencyList, Node_t **circuit) {
-    assert(adjacencyList != NULL && *adjacencyList != NULL);
+    assert(adjacencyList != NULL);
     assert(circuit != NULL && *circuit != NULL);
     Node_t *currIncident = *circuit;
     while (currIncident != NULL) {
@@ -604,34 +604,20 @@ void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
     /* keeping constructing new circuit until all edge were visited */
     while (edgeVisited != edgeCount) {
         Node_t *curr = selectVertex(adjacencyList, &circuit);
-        Node_t *walk = NULL;
-        Node_t *joint = NULL;
         char nextVertex = curr->data.startVertex;
-        int nextIndex = vertex2Index(nextVertex);
-        if (hasUnvisitedEdge(&adjacencyList[nextIndex])) {
-            walk = constructCircuit(adjacencyList, nextVertex);
-            joint = searchList(&circuit, &nextVertex, &searchStartVertex);
-            insertBefore(&circuit, &walk, &joint);
-            if ((edgeVisited = countList(&circuit)) == edgeCount){
-                lineCount = -1;
-            }
-            printOutput(&circuit, &lineCount, "S1");
+        Node_t *walk = constructCircuit(adjacencyList, nextVertex);
+        /* find where to join the new circuit */
+        Node_t *joint = searchList(&circuit, &nextVertex, &searchStartVertex);
+        insertBefore(&circuit, &walk, &joint);
+        if ((edgeVisited = countList(&circuit)) == edgeCount){
+            lineCount = -1;
         }
+        printOutput(&circuit, &lineCount, "S1");
     }
     printf("S1: Scenic route value is %d\n", computeScenicValue(&circuit));
     /* free circuit */
     deleteList(&circuit);
     circuit = NULL;
-}
-
-void resetSandbox(Node_t** adjacencyList, Node_t **adjacencyListCopy,
-                  Node_t** circuit, Node_t **circuitCopy){
-    /* free previous copy */
-    deleteList(circuitCopy);
-    freeAdjacencyList(adjacencyListCopy);
-
-    cloneAdjacencyList(adjacencyListCopy, adjacencyList);
-    *circuitCopy = cloneList(*circuit);
 }
 
 void ConstructInitialCircuit(Node_t** adjacencyList, Node_t** circuit, char
