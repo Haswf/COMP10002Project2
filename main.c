@@ -341,10 +341,11 @@ void append(Node_t **head, data_t new_data) {
 
 void printOutput(Node_t **circuit, int *lineCount,
                  char* stagemarker) {
+    assert(circuit != NULL && *circuit != NULL);
     static int prevLineCount = 0;
     /* static prevLine keeps track of last line printed */
     if ((*lineCount <= FIRST_TEN_LINE || !(*lineCount % 5))  &&
-        prevLineCount!= *lineCount) {
+            (prevLineCount!= *lineCount || *lineCount == 1 )) {
         /* Call printRestrictedCircuit to print formatted output */
         printf("%s: ", stagemarker);
         printRestrictedCircuit(circuit);
@@ -375,7 +376,8 @@ void printRestrictedCircuit(Node_t **circuit) {
                 printf("-%d->%c", curr->data.value, curr->data.endVertex);
             }
             printCount++;
-        } else if (edgeCount <= PRINT_EDGE_LIMIT) {
+        }
+        else if (edgeCount <= PRINT_EDGE_LIMIT) {
             printf("-%d->%c", curr->data.value, curr->data.endVertex);
         }
         curr = curr->next;
@@ -593,14 +595,13 @@ int do_stage0(Node_t **adjacencyList, char routeStart) {
 void do_stage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutputHeader(1);
     int lineCount = 1;
-    int edgeVisited = 0;
     /* Linked list that records incident travelled */
     Node_t *circuit = NULL;
 
     /* Construct initial circuit */
     ConstructInitialCircuit(adjacencyList, &circuit, routeStart);
     printOutput(&circuit, &lineCount, "S1");
-
+    int edgeVisited = countList(&circuit);
     /* keeping constructing new circuit until all edge were visited */
     while (edgeVisited != edgeCount) {
         Node_t *curr = selectVertex(adjacencyList, &circuit);
