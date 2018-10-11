@@ -707,10 +707,11 @@ void resetSandbox(Node_t** constCircuit, Node_t** circuitCopy,
 }
 
 void removeSandbox(Node_t** circuitModified ,Node_t** circuitCopy, Node_t** adjacencyListCopy){
-    if (*circuitModified == *circuitCopy)
-        deleteList(circuitCopy);
-    else
+    if (*circuitModified){
         deleteList(circuitModified);
+    }
+    else
+        deleteList(circuitCopy);
     freeAdjacencyList(adjacencyListCopy);
     /* set pointers to NULL */
     *circuitCopy = NULL;
@@ -729,18 +730,20 @@ int findBestExtension(Node_t **adjacencyList, Node_t** circuit) {
         resetSandbox(&constCircuit, &circuitCopy, adjacencyList, adjacencyListCopy);
         Node_t* circuitCopyModified = extendOneVertex(adjacencyListCopy, &circuitCopy,
                                        currIncident);
-        if (circuitCopyModified)
+        if (circuitCopyModified){
             changeGlobalCircuit(&circuitCopyModified, circuit, &max);
-        removeSandbox(&circuitCopyModified, &circuitCopy, adjacencyListCopy);
+        }
+        removeSandbox(&circuitCopyModified,&circuitCopy, adjacencyListCopy);
         currIncident = currIncident->next;
     }
 
     /* Attempt to extend at last vertex */
     resetSandbox(&constCircuit, &circuitCopy, adjacencyList, adjacencyListCopy);
     Node_t* circuitCopyModified = extendEndVertex(adjacencyListCopy, &circuitCopy);
-    if (circuitCopyModified != NULL)
+    if (circuitCopyModified != NULL) {
         changeGlobalCircuit(&circuitCopyModified, circuit, &max);
-    removeSandbox(&circuitCopyModified, &circuitCopy, adjacencyListCopy);
+    }
+    removeSandbox(&circuitCopyModified,&circuitCopy, adjacencyListCopy);
 
     /* Sync changes to global adjacencyList */
     updateAdjacencyList(adjacencyList, circuit);
