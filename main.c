@@ -31,7 +31,7 @@
    or sought benefit from such actions.
 
    Signed by: Shuyang Fan 988301
-   Dated:     30/09/2018
+   Dated:     12/10/2018
 
 */
 
@@ -77,7 +77,7 @@ struct Node {
 /* list operations */
 void append(Node_t **head, data_t new_data);
 void appendList(Node_t **lst1, Node_t **lst2);
-void insertListBefore(Node_t **circuit, Node_t **walk, Node_t **joint);
+void insertListBefore(Node_t **circuit, Node_t **trail, Node_t **joint);
 void deleteList(Node_t **head);
 int countList(Node_t **head);
 void freeAdjacencyList(Node_t **AdjacencyList);
@@ -104,10 +104,10 @@ Node_t* partition(Node_t * head, Node_t * end,
                                                                   void *));
 /* stage 1 and 2 helper functions */
 int hasUnvisitedEdge(Node_t **head);
-char appendIncident(Node_t **adjacencyList, Node_t **walk, char nextVertex);
+char appendIncident(Node_t **adjacencyList, Node_t **trail, char nextVertex);
 int computeScenicValue(Node_t **circuit);
 void constructInitialCircuit(Node_t** adjacencyList, Node_t** circuit, char routeStart);
-Node_t *constructCircuit(Node_t **adjacencyList, char routeStart);
+Node_t *constructTrail(Node_t **adjacencyList, char routeStart);
 Node_t* selectVertex(Node_t **adjacencyList, Node_t **circuit);
 Node_t *selectEdge(Node_t **head);
 int updateStatus(Node_t **adjacencyList, Node_t *min);
@@ -137,11 +137,13 @@ void doStage2(Node_t **adjacencyList, char routeStart, int edgeCount);
 /* end function prototypes ---------------------------------------------------*/
 
 char readStart(char *str) {
+    /* read starting point from agrv if it exists.*/
     assert(str);
     return str[0];
 }
 
 int vertex2Index(char vertex) {
+    /* Compute index of a vertex in adjacencyList, returns the index */
     if (isupper(vertex)) {
         return (int) vertex - ASCII_CONVERTOR_UPPERCASE;
     } else {
@@ -150,51 +152,60 @@ int vertex2Index(char vertex) {
 }
 
 int cmpIncident(void *data1, void *data2) {
+    /* cmpIncident compares two incident. */
     incident_t *incident1 = data1;
     incident_t *incident2 = data2;
 
+    /* compute difference in value */
     int diff = incident1->value - incident2->value;
     if (diff){
         return diff;
     }
+    /* if they have identical values,
+     * compare which vertex does the incident leads to */
     else
         return incident1->endVertex - incident2->endVertex;
 }
 
 void quickSort(Node_t **headRef, int (*cmp)(void *, void *)) {
+    /* quickSort is driver function to quicksort a linked list.
+     * It takes a linked list and a function pointer to compare data.*/
     (*headRef) = quickSortRecur(*headRef, getTail(*headRef), cmp);
 }
 
 Node_t *quickSortRecur(Node_t * head, Node_t * end, int (*cmp)(void *, void *)) {
-    /* This function is a modified implementation of quicksort on linked list written by Bala. All credit goes to him.
-     * The original code can be obtained from https://www.geeksforgeeks.org/quicksort-on-singly-linked-list.
-     * I added another parameter to pass a compare function pointer. So I can compare other data type other than int*/
+    /* quickSortRecur sorts a linked list with quicksort This function is
+     * a modified implementation of quicksort on linked list written by Bala.
+     * All credit goes to him. The original code can be obtained from
+     * https://www.geeksforgeeks.org/quicksort-on-singly-linked-list.
+     * I added another parameter to pass a compare function pointer.
+     * So I can compare other data type other than int*/
     /* base case */
     if (!head || head == end)
         return head;
     Node_t *newHead = NULL, *newEnd = NULL;
-    // Partition the list, newHead and newEnd will be updated
-    // by the partition function
+    /* Partition the list, newHead and newEnd will be updated by the
+     * partition function */
     Node_t *pivot = partition(head, end, &newHead, &newEnd, cmp);
 
     /* If pivot is the smallest element - no need to recur for the left part. */
     if (newHead != pivot)
     {
-        // Set the node before the pivot node as NULL
+        /* Set the node before the pivot node as NULL */
         Node_t *tmp = newHead;
         while (tmp->next != pivot)
             tmp = tmp->next;
         tmp->next = NULL;
 
-        // Recur for the list before pivot
+        /* Recur for the list before pivot */
         newHead = quickSortRecur(newHead, tmp, cmp);
 
-        // Change next of last node of the left half to pivot
+        /* Change next of last node of the left half to pivot */
         tmp = getTail(newHead);
         tmp->next = pivot;
     }
 
-    // Recur for the list after the pivot element
+    /* Recur for the list after the pivot element */
     pivot->next = quickSortRecur(pivot->next, newEnd, cmp);
     return newHead;
 }
@@ -251,13 +262,16 @@ Node_t* partition(Node_t * head, Node_t * end,
 }
 
 Node_t* getTail(Node_t* head) {
+    /* getTail returns the last node in a linked list */
     while (head != NULL && head->next != NULL)
         head = head->next;
     return head;
 }
 
 void resetStatus(Node_t **adjacencyList) {
+    /* resetStatus changes status of all edges in adjacencyList to unvisited */
     int i;
+    /* traverse to reset status */
     for (i = 0; i < MAX_VERTICES; i++) {
         if (adjacencyList[i] != NULL) {
             Node_t *current = adjacencyList[i];
@@ -270,6 +284,9 @@ void resetStatus(Node_t **adjacencyList) {
 }
 
 Node_t *cloneList(Node_t *list) {
+    /* cloneList make a deep copy of a list
+     * It takes list head and returns pointer
+     * to the new list cloned*/
     if (list == NULL)
         return NULL;
     Node_t *new = (Node_t *) malloc(sizeof(Node_t));
@@ -279,6 +296,7 @@ Node_t *cloneList(Node_t *list) {
 }
 
 void cloneAdjacencyList(Node_t **dest, Node_t **src) {
+    /* cloneAdjacecyList makes a deep copy of src to dest */
     int i;
     for (i = 0; i < MAX_VERTICES; i++) {
         if (src[i] != NULL) {
@@ -288,6 +306,7 @@ void cloneAdjacencyList(Node_t **dest, Node_t **src) {
 }
 
 void updateExtremeEdge(int edgeCount, int curr_value, int *max, int *min) {
+    /* updateExtremeEdge() keeps track of minimum value and maximum value */
     /* Initialize minVal, maxVal with the first incident value */
     if (!edgeCount) {
         *max = *min = curr_value;
@@ -304,9 +323,12 @@ void updateExtremeEdge(int edgeCount, int curr_value, int *max, int *min) {
 }
 
 int readMultigraph(Node_t **adjacencyList, char routeStart) {
+    /* readMultigraph constructs an adjacencyList to store a multigraph
+     * It takes an empty adjacencyList and a starting point, returns the
+     * number of edges read */
     char start, end;
+    /* initialise multigraph properties */
     int value = 0;
-    /* Multigraph properties */
     int edgesCount, minVal, maxVal, sum, oddDegree, evenDegree;
     edgesCount = minVal = maxVal = sum = oddDegree = evenDegree = 0;
 
@@ -339,7 +361,7 @@ int readMultigraph(Node_t **adjacencyList, char routeStart) {
 }
 
 incident_t incidentPacker(char startVertex, char endVertex, int value, int ID) {
-    /* pack up incident */
+    /* incidentPacker packs input into a incident_t structure */
     incident_t curr_incident;
     curr_incident.startVertex = startVertex;
     curr_incident.endVertex = endVertex;
@@ -350,6 +372,10 @@ incident_t incidentPacker(char startVertex, char endVertex, int value, int ID) {
 }
 
 void checkType(int oddDegree, int evenDegree) {
+    /* Check if a multigraph is Eulerian or Traversable. If the
+     * multigraph is not Eulerian it will terminates the program.
+     * It takes the number of vertices of odd degree and the number of
+     * vertices of even degree.*/
     if (!oddDegree && evenDegree) {
         printf("S0: Multigraph is Eulerian\n");
         return;
@@ -360,6 +386,8 @@ void checkType(int oddDegree, int evenDegree) {
 }
 
 int countVertices(Node_t **adjacencyList) {
+    /* countVertices returns the number of vertices
+     * in a adjacencylise. It takes an adjacencyList */
     int count = 0;
     int i;
     for (i = 0; i < MAX_VERTICES; i++) {
@@ -372,6 +400,9 @@ int countVertices(Node_t **adjacencyList) {
 
 void countDegree(Node_t **adjacencyList, int *oddDegreeCount, int *
 evenDegreeCount) {
+    /* Count the number of vertices of odd degree and the number of
+     * vertices of even degree in an adjacencyList. The results will be updated
+     * to oddDegreeCount, evenDegreeCount passed in as pointers */
     int i, degreeCount;
     for (i = 0; i < MAX_VERTICES; i++) {
         if (adjacencyList[i] != NULL) {
@@ -386,14 +417,16 @@ evenDegreeCount) {
 }
 
 void freeAdjacencyList(Node_t **AdjacencyList) {
-    /* free every non-empty linked lists in AdjacencyList*/
+    /* Free every node in an adjacencyList */
     int i;
+    /* free every non-empty linked lists in AdjacencyList*/
     for (i = 0; i < MAX_VERTICES; i++) {
         deleteList(&AdjacencyList[i]);
     }
 }
 
 void append(Node_t **head, data_t new_data) {
+    /* append appends an data_t structure to the end of a linked list */
     Node_t *new = (Node_t *) malloc(sizeof(Node_t));
     /* assert malloc is successful */
     assert(new);
@@ -418,11 +451,13 @@ void append(Node_t **head, data_t new_data) {
 
 void printOutput(Node_t **circuit, int *lineCount,
                  char* stage) {
+    /* printOutput prints out stage indicator and circuit selectively
+     * to meet requirements in the specification */
     assert(circuit != NULL && *circuit != NULL);
-    /* static prevLine keeps track of last line printed */
+    /* static int prevLine keeps track of last line printed */
     static int prevLineCount = 0;
     if ((*lineCount <= FIRST_TEN_LINE || !(*lineCount % 5))  &&
-    /* print output if the line hasn't get printed or it's the first line */
+    /* print output if the line hasn't being printed or it's the first line */
             (prevLineCount!= *lineCount || *lineCount == 1 )) {
         /* Call printRestrictedCircuit to print formatted output */
         printf("%s: ", stage);
@@ -434,6 +469,7 @@ void printOutput(Node_t **circuit, int *lineCount,
 }
 
 void printRestrictedCircuit(Node_t **circuit) {
+    /* printRestrictedCircuit prints a circuit with restriction*/
     assert (circuit != NULL && *circuit != NULL);
     Node_t *curr = *circuit;
     /* print start vertex of the route */
@@ -513,15 +549,21 @@ Node_t *searchList(Node_t **head, void *key, int(*cmp)(void *, void *)) {
 }
 
 int searchID(void *node, void *key) {
+    /* searchID search for a node with given ID,
+     * return non-zero number if match, returns zero
+     * if not match */
     Node_t *curr = node;
     int *edgeID = key;
     if (curr->data.ID == *edgeID) {
-        return 1;
+        return FOUND;
     }
-    return 0;
+    return NOT_FOUND;
 }
 
 int searchStartVertex(void *node, void *key) {
+    /* searchStartVertex search for a node with given startVertex,
+     * return non-zero number if found, returns zero
+     * if not found */
     Node_t *curr = node;
     char *startVertex = key;
     if (curr->data.startVertex == *startVertex) {
@@ -531,6 +573,7 @@ int searchStartVertex(void *node, void *key) {
 }
 
 void deleteList(struct Node **head) {
+    /* deleteList deletes a linked list */
     /* return if NULL pointer is given */
     if (head == NULL || (*head) == NULL) {
         return;
@@ -551,6 +594,7 @@ void deleteList(struct Node **head) {
 }
 
 int countList(Node_t **head) {
+    /* countList returns the number of nodes in a linked list. */
     assert(head != NULL && *head != NULL);
     int count = 0;
     /* Initialize current to be head */
@@ -568,6 +612,8 @@ void printOutputHeader(int stage_no) {
 }
 
 Node_t *selectEdge(Node_t **head) {
+    /* selectEdge returns a pointer to a node
+     * which contains edge with the minumum value */
     /* Assert real head is not NULL */
     assert(head != NULL && (*head) != NULL);
     Node_t *current = *head;
@@ -601,8 +647,8 @@ int updateStatus(Node_t **adjacencyList, Node_t *min) {
     return 0;
 }
 
-char appendIncident(Node_t **adjacencyList, Node_t **walk, char nextVertex) {
-    assert(walk != NULL);
+char appendIncident(Node_t **adjacencyList, Node_t **trail, char nextVertex) {
+    assert(trail != NULL);
     int nextIndex = vertex2Index(nextVertex);
     /*  find edge with minimum value for current vertex */
     Node_t *edge = selectEdge(&adjacencyList[nextIndex]);
@@ -610,26 +656,28 @@ char appendIncident(Node_t **adjacencyList, Node_t **walk, char nextVertex) {
     updateStatus(adjacencyList, edge);
     nextVertex = edge->data.endVertex;
     /* compute index of the next vertex */
-    append(walk, edge->data);
+    append(trail, edge->data);
     return nextVertex;
 }
 
-Node_t *constructCircuit(Node_t **adjacencyList, char routeStart) {
+Node_t *constructTrail(Node_t **adjacencyList, char routeStart) {
     char nextVertex = routeStart;
-    Node_t *walk = NULL;
+    Node_t *trail = NULL;
     int circuitCompleted = 0;
     /* keep moving till reached the start vertex, the circuit is completed */
     while (!circuitCompleted) {
-        nextVertex = appendIncident(adjacencyList, &walk, nextVertex);
-        /* if get back to start point, circuit is completed */
+        nextVertex = appendIncident(adjacencyList, &trail, nextVertex);
+        /* if get back to starting point, circuit is completed */
         if (nextVertex == routeStart) {
             circuitCompleted++;
         }
     }
-    return walk;
+    return trail;
 }
 
 void sortAdjacencyList(Node_t** adjacencyList){
+    /* sortAdjacencyList sorts each linked list
+     * in adjacencyList with quicksort*/
     int i;
     for (i = 0; i < MAX_VERTICES; i++) {
         if (adjacencyList[i] != NULL) {
@@ -655,14 +703,14 @@ void doStage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
     printOutput(&circuit, &lineCount, "S1");
     int edgeVisited = countList(&circuit);
 
-    /* keeping constructing new circuit until all edge were visited */
+    /* keep constructing new circuit until all edge have been visited */
     while (edgeVisited != edgeCount) {
         Node_t *curr = selectVertex(adjacencyList, &circuit);
         char nextVertex = curr->data.startVertex;
-        Node_t *walk = constructCircuit(adjacencyList, nextVertex);
+        Node_t *trail = constructTrail(adjacencyList, nextVertex);
         /* find where to join the new circuit */
         Node_t *joint = searchList(&circuit, &nextVertex, &searchStartVertex);
-        insertListBefore(&circuit, &walk, &joint);
+        insertListBefore(&circuit, &trail, &joint);
         /* Update the number of edges visited and compare it with edgeCount */
         if ((edgeVisited = countList(&circuit)) == edgeCount){
             lineCount = LAST_LINE;
@@ -677,13 +725,17 @@ void doStage1(Node_t **adjacencyList, char routeStart, int edgeCount) {
 
 void constructInitialCircuit(Node_t** adjacencyList, Node_t** circuit, char
 routeStart){
+    /* constructInitialCircuit constructs a initial circuit with starting point
+     * specified. It takes an adjacencylist, a linked list to save the
+     * circuit and a char that indicates where to start. */
     Node_t *joint = NULL;
     /* Construct initial circuit */
-    Node_t *walk = constructCircuit(adjacencyList, routeStart);
-    insertListBefore(circuit, &walk, &joint);
+    Node_t *trail = constructTrail(adjacencyList, routeStart);
+    insertListBefore(circuit, &trail, &joint);
 }
 
 void updateAdjacencyList(Node_t **adjacencyList, Node_t** circuit){
+    /* Mark all edges in circuit as visited in adjacencyList */
     Node_t* incident = *circuit;
     while (incident!=NULL){
         updateStatus(adjacencyList, incident);
@@ -692,6 +744,9 @@ void updateAdjacencyList(Node_t **adjacencyList, Node_t** circuit){
 }
 
 void changeGlobalCircuit(Node_t** circuitCopy, Node_t** circuit, int* max) {
+    /* changeGlobalCircuit compares two circuits. If the new circuit contributes
+     * to a higher overall scenic value, replace the global circuit with the
+     * new one */
     int curr = computeScenicValue(circuitCopy);
     if (curr > *max) {
         *max = curr;
@@ -702,11 +757,15 @@ void changeGlobalCircuit(Node_t** circuitCopy, Node_t** circuit, int* max) {
 
 void resetSandbox(Node_t** constCircuit, Node_t** circuitCopy,
         Node_t** adjacencyList, Node_t** adjacencyListCopy){
+    /* reset adjacencyListCopy and circuitCopy for other functions to mess
+     * around */
     cloneAdjacencyList(adjacencyListCopy, adjacencyList);
     *circuitCopy = cloneList(*constCircuit);
 }
 
-void removeSandbox(Node_t** circuitModified ,Node_t** circuitCopy, Node_t** adjacencyListCopy){
+void removeSandbox(Node_t** circuitModified ,Node_t** circuitCopy,
+        Node_t** adjacencyListCopy){
+    /* clean up adjacencyListCopy and circuitCopy */
     if (*circuitModified){
         deleteList(circuitModified);
     }
@@ -719,7 +778,11 @@ void removeSandbox(Node_t** circuitModified ,Node_t** circuitCopy, Node_t** adja
     *adjacencyListCopy = NULL;
 }
 int findBestExtension(Node_t **adjacencyList, Node_t** circuit) {
+    /* findBestExtension literally finds the best extension which
+     * contributes to the highest scenic value. It applies change to the
+     * global circuit. */
     int max = 0;
+
     Node_t* constCircuit = cloneList(*circuit);
     Node_t* adjacencyListCopy[MAX_VERTICES] = {NULL};
     Node_t* circuitCopy = NULL;
@@ -754,6 +817,8 @@ int findBestExtension(Node_t **adjacencyList, Node_t** circuit) {
 }
 
 Node_t* extendEndVertex(Node_t** adjacencyList, Node_t** circuit){
+    /* extendEndVertex attempts to extend current circuit at its end,
+     * returns a modified linked list after extending at end */
     Node_t *lastNode = *circuit;
     /* locate the end of vertex */
     while (lastNode->next != NULL) {
@@ -761,24 +826,24 @@ Node_t* extendEndVertex(Node_t** adjacencyList, Node_t** circuit){
     }
     char nextVertex = lastNode->data.endVertex;
     int nextIndex = vertex2Index(nextVertex);
-    Node_t* walk = NULL;
+    Node_t* trail = NULL;
     if (hasUnvisitedEdge(&adjacencyList[nextIndex])) {
-        walk = constructCircuit(adjacencyList, nextVertex);
-        appendList(circuit, &walk);
+        trail = constructTrail(adjacencyList, nextVertex);
+        appendList(circuit, &trail);
     }
     return *circuit;
 }
 
 Node_t* extendOneVertex(Node_t** adjacencyList, Node_t** circuit, Node_t*
 vertex){
-    Node_t* walk = NULL;
+    Node_t* trail = NULL;
     Node_t* joint = NULL;
     char nextVertex = vertex->data.startVertex;
     int nextIndex = vertex2Index(nextVertex);
     if (hasUnvisitedEdge(&adjacencyList[nextIndex])){
-        walk = constructCircuit(adjacencyList, nextVertex);
+        trail = constructTrail(adjacencyList, nextVertex);
         joint = searchList(circuit, &vertex->data.ID, &searchID);
-        insertListBefore(circuit, &walk, &joint);
+        insertListBefore(circuit, &trail, &joint);
         return *circuit;
     }
     else {
@@ -815,6 +880,7 @@ void doStage2(Node_t **adjacencyList, char routeStart, int edgeCount) {
 }
 
 void appendList(Node_t **lst1, Node_t **lst2) {
+    /* append an entire linked to another linked list */
     assert(lst1 != NULL && lst2 != NULL);
     assert(*lst1 != NULL && *lst1 != NULL);
     Node_t *end = *lst1;
@@ -825,16 +891,18 @@ void appendList(Node_t **lst1, Node_t **lst2) {
     end->next = *lst2;
 }
 
-void insertListBefore(Node_t **circuit, Node_t **walk, Node_t **joint) {
+void insertListBefore(Node_t **circuit, Node_t **trail, Node_t **joint) {
+    /* Insert an entire linked list trial before a node
+     * in circuit specified by pointer joint */
     assert(circuit != NULL);
-    assert(*walk != NULL && walk != NULL);
+    assert(*trail != NULL && trail != NULL);
     /* if given linked list is empty */
     if (*circuit == NULL) {
-        *circuit = *walk;
+        *circuit = *trail;
         return;
     }
     /* if given linked list to be inserted is empty */
-    if (*walk == NULL) {
+    if (*trail == NULL) {
         return;
     }
     Node_t *curr = *circuit;
@@ -843,28 +911,31 @@ void insertListBefore(Node_t **circuit, Node_t **walk, Node_t **joint) {
         prev = curr;
         curr = curr->next;
     }
-    Node_t *walkHead = *walk;
-    curr = *walk;
+    Node_t *trailHead = *trail;
+    curr = *trail;
 
-    Node_t* walkEnd = NULL;
+    Node_t* trailEnd = NULL;
     while (curr != NULL) {
-        walkEnd = curr;
+        trailEnd = curr;
         curr = (curr)->next;
     }
-    assert(walkEnd != NULL);
+    assert(trailEnd != NULL);
     /* if list is to be inserted at the front of circuit */
     if (prev == NULL) {
-        *circuit = walkHead;
-        walkEnd->next = (*joint);
+        *circuit = trailHead;
+        trailEnd->next = (*joint);
     }
         /* if list is to be inserted at the middle of the circuit */
     else {
-        prev->next = *walk;
-        walkEnd->next = (*joint);
+        prev->next = *trail;
+        trailEnd->next = (*joint);
     }
 }
 
 int computeScenicValue(Node_t **circuit) {
+    /* Compute overall scenic value of a circuit.
+     * It takes a linked list contains edges visited in the circuit,
+     * returns overall scenic value. */
     Node_t *curr = *circuit;
     int weight = 1;
     int value = 0;
@@ -879,6 +950,7 @@ int computeScenicValue(Node_t **circuit) {
 }
 
 int main(int argc, char *argv[]) {
+    /* driver functions to perform tasks in stage 0, 1, 2 */
     Node_t *adjacencyList[MAX_VERTICES] = {NULL};
     /* read routestart from argv */
     char routeStart = readStart(argv[1]);
